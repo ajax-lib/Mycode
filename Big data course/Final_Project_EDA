@@ -1,0 +1,104 @@
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import matplotlib.pyplot as plt # data visualization
+from matplotlib.font_manager import findfont , FontProperties
+import seaborn as sns # statistical data visualization
+%matplotlib inline
+
+sns.set(font=['sans-serif'])
+sns.set_style("whitegrid",{"font.sans-serif":['Microsoft JhengHei']})
+
+df = pd.read_csv(r"C:\\Users\\USER\\Desktop\\python_practice\\CVD_ALL.csv",encoding = 'big5')
+df = df.drop(columns=["ID"])
+df.info()
+
+print("The shape of the dataset is : ", df.shape)
+df.head()
+
+dict = {}
+for i in list(df.columns):
+    dict[i] = df[i].value_counts().shape[0]
+
+pd.DataFrame(dict,index=["unique count"]).transpose()
+
+cat_cols = ['性別','追蹤時間','檳榔','飲酒','家族病史','抽菸','抽菸量']
+con_cols = ["年齡","腰圍","收縮壓","舒張壓","高密度脂蛋白","三酸甘油酯"]
+target_col = ["心血管疾病"]
+print("The categorial cols are : ", cat_cols)
+print("The continuous cols are : ", con_cols)
+print("The target variable is :  ", target_col)
+
+df[con_cols].describe().transpose()
+df = df.dropna()
+df.isnull().sum()
+
+from matplotlib import rcParams
+
+rcParams['figure.figsize'] = 25, 15
+
+plot = sns.countplot(x='年齡', hue='心血管疾病', data = df, palette="Set2");
+
+df_categorical = df.loc[:, ['性別','追蹤時間','檳榔','飲酒','家族病史','抽菸','抽菸量']]
+sns.countplot(x="variable", hue="value",data= pd.melt(df_categorical));
+df_categorical
+
+df.groupby('性別')['年齡'].mean()
+for i in con_cols:
+    print(df.groupby('性別')['{}'.format(i)].mean())
+    
+# df.drop(df[(df['height'] > df['height'].quantile(0.975)) | (df['height'] < df['height'].quantile(0.025))].index,inplace=True)
+df.drop(df[(df['三酸甘油酯'] > df['三酸甘油酯'].quantile(0.9))].index,inplace=True)
+
+corr = df.corr()
+cmap = sns.diverging_palette(220, 10, as_cmap=True)
+# Generate a mask for the upper triangle
+mask = np.zeros_like(corr, dtype=np.bool)
+mask[np.triu_indices_from(mask)] = True
+
+# Set up the matplotlib figure
+f, ax = plt.subplots(figsize=(20, 12))
+# Draw the heatmap with the mask and correct aspect ratio
+sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,annot = True,
+            square=True, linewidths=.5, cbar_kws={"shrink": .5});
+            
+for i in con_cols :
+    df_melt = pd.melt(frame=df, value_vars=['{}'.format(i)], id_vars=['性別'])
+    plt.figure(figsize=(12, 10))
+    ax = sns.violinplot(
+        x='variable', 
+        y='value', 
+        hue='性別', 
+        split=True, 
+        data=df_melt, 
+        scale='count',
+        scale_hue=False,
+        palette="Set2");
+        
+# Class count
+count_class_0, count_class_1 = df['心血管疾病'].value_counts()
+
+# Divide by class
+df_class_0 = df[df['心血管疾病'] == 0]
+df_class_1 = df[df['心血管疾病'] == 1]
+
+# 使用undersampling 從 non-disease 資料中取出跟 disease者數量相當的樣本
+df_class_0_under = df_class_0.sample(count_class_1)
+df_test_under = pd.concat([df_class_0_under, df_class_1], axis=0)
+
+print('Random under-sampling:')
+print(df_test_under['心血管疾病'].value_counts())
+
+df_test_under['心血管疾病'].value_counts().plot(kind='bar', title='Count (target)');
+
+for i in con_cols :
+    df_melt = pd.melt(frame=df_test_under, value_vars=['{}'.format(i)], id_vars=['心血管疾病'])
+    plt.figure(figsize=(12, 10))
+    ax = sns.violinplot(
+        x='variable', 
+        y='value', 
+        hue='心血管疾病', 
+        split=True, 
+        data=df_melt, 
+        scale='count',
+        scale_hue=False,
+        palette="Set2");
